@@ -1,29 +1,106 @@
 name: Build and deploy PaintXP
 
 on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
+
+concurrency:
+  group: paintxp-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
-      - run: npm run build:pages
-      - run: npm test
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Build standalone HTML
+        run: npm run build
+      - name: Run Node tests
+        run: npm test
+      - name: Install browser test dependencies
+        run: |
+          python -m pip install playwright==1.55.0 Pillow==11.3.0
+          python -m playwright install --with-deps chromium
+          python -c "from playwright.sync_api import sync_playwright; p=sync_playwright().start(); print('CHROMIUM_PATH='+p.chromium.executable_path); p.stop()" >> "$GITHUB_ENV"
+      - name: Check desktop, touch, image codecs, and editing
+        run: npm run test:browser
+      - name: Stage public site
+        run: node scripts/pages.mjs
+      - name: Upload tested standalone build and screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: paintxp-distribution
+          path: |
+            paint-xp.html
+            docs/screenshots/
+            docs/browser-test-results.json
+          retention-days: 14
+      - name: Upload Pages artifact
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v4
         with:
           path: _site
-      - uses: actions/deploy-pages@v4
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+      - name: Deploy to GitHub Pages
         id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify published app and build integrity
+        env:
+          PAGES_URL: ${{ steps.deployment.outputs.page_url }}
+          EXPECTED_SHA: ${{ github.sha }}
+        shell: python
+        run: |
+          import hashlib, json, os, time, urllib.request
+          base = os.environ['PAGES_URL'].rstrip('/') + '/'
+          sha = os.environ['EXPECTED_SHA']
+          def get(path):
+              request = urllib.request.Request(base + path + '?verify=' + sha, headers={'Cache-Control': 'no-cache'})
+              with urllib.request.urlopen(request, timeout=20) as response:
+                  assert response.status == 200, path
+                  return response.read()
+          for attempt in range(12):
+              try:
+                  manifest = json.loads(get('deployment.json'))
+                  assert manifest['sourceCommit'] == sha, 'Deployment is still propagating'
+                  html = get('index.html').decode('utf-8')
+                  assert 'src/app.js' in html and 'drawing-area' in html, 'Unexpected entry page'
+                  bundle = get('paint-xp.html')
+                  assert len(bundle) == manifest['standaloneBytes'], 'Standalone length mismatch'
+                  assert hashlib.sha256(bundle).hexdigest() == manifest['standaloneSHA256'], 'Standalone checksum mismatch'
+                  for path in ['src/app.js', 'src/raster.js', 'src/renderer.js', 'src/worker.js', 'src/style.css', 'assets/paint.svg']:
+                      assert len(get(path)) > 0, 'Empty asset: ' + path
+                  print('Verified live app:', base)
+                  print('Published source commit:', sha)
+                  print('Standalone SHA256:', manifest['standaloneSHA256'])
+                  break
+              except Exception as error:
+                  if attempt == 11:
+                      raise
+                  print('Retrying site verification:', error)
+                  time.sleep(5)
