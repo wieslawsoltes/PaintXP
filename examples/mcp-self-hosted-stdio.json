@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "paint-xp": {
+      "command": "node",
+      "args": ["/ABSOLUTE/PATH/paint-xp-webgpu/server/server.mjs", "--stdio"]
+    }
+  }
+}

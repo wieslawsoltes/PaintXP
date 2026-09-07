@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "date": "2026-09-07",
+  "standaloneBytes": 199907,
+  "standaloneSHA256": "773b9b1b4b4c40506cfe069f4186182a24f4509b3bda45329b02a7c48e2ff161",
+  "nodeTestsPassed": 61,
+  "browserChecksPassed": 55,
+  "browserRendererTested": "Canvas 2D",
+  "webgpuHardwareExecuted": false,
+  "productionMCPClientCertified": false,
+  "notes": "Independent XP-era Paint recreation; not verified pixel-identical. Source and test records included."
+}

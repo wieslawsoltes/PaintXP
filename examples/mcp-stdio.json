@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "paint-xp": {
+      "command": "node",
+      "args": ["/ABSOLUTE/PATH/paint-xp-webgpu/server/mcp-client.mjs"],
+      "env": {
+        "PAINT_MCP_URL": "http://127.0.0.1:5173/mcp",
+        "PAINT_MCP_TOKEN": "REPLACE_WITH_TOKEN_PRINTED_BY_NPM_START"
+      }
+    }
+  }
+}

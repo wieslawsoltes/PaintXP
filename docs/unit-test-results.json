@@ -1,0 +1,10 @@
+{
+  "date": "2026-09-07",
+  "command": "npm test",
+  "runtime": "Node.js v22.16.0",
+  "tests": 61,
+  "passed": 61,
+  "failed": 0,
+  "durationMs": 426.512466,
+  "scope": "Raster, codecs, dimension preflight, standalone JavaScript syntax, schemas, local HTTP/MCP security and browser-bridge wire protocol, stdio. Server integration uses an emulated browser peer, not a connected production MCP client. The actual AgentBridge class was also exercised against local HTTP with a minimal emulated app."
+}

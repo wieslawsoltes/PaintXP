@@ -1,0 +1,44 @@
+{
+  "environment": {
+    "runtime": "v22.16.0",
+    "platform": "linux",
+    "architecture": "x64"
+  },
+  "note": "Single-run CPU raster measurements inside this container. Not browser, GPU, or mobile benchmarks. No timing guarantees.",
+  "sparseTiles": 1,
+  "denseTiles": 256,
+  "results": [
+    {
+      "name": "Create 16,384 × 16,384 sparse document",
+      "milliseconds": 0.07
+    },
+    {
+      "name": "One 100 px stroke on sparse canvas",
+      "milliseconds": 0.86
+    },
+    {
+      "name": "4,096 × 4,096 rectangle boundary",
+      "milliseconds": 14.01
+    },
+    {
+      "name": "Flood 16,760,836-pixel interior",
+      "milliseconds": 305.02
+    },
+    {
+      "name": "Extract 2,048 × 2,048 selection",
+      "milliseconds": 94.09
+    },
+    {
+      "name": "Paste 2,048 × 2,048 selection",
+      "milliseconds": 91.85
+    },
+    {
+      "name": "CPU invert 4,096 × 4,096 tiled image",
+      "milliseconds": 45.92
+    },
+    {
+      "name": "Rotate 2,048 × 2,048 selection, 90°",
+      "milliseconds": 118.29
+    }
+  ]
+}

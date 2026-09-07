@@ -1,0 +1,26 @@
+{
+  "name": "paint-xp-webgpu",
+  "version": "1.0.0",
+  "private": true,
+  "description": "An independent XP-era Paint recreation with tiled raster graphics, WebGPU and a local MCP bridge.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server/server.mjs",
+    "mcp": "node server/server.mjs --stdio",
+    "test": "node --test tests/*.test.mjs",
+    "build": "node scripts/build.mjs",
+    "benchmark": "node tests/benchmark.mjs",
+    "test:browser": "python tests/browser_test.py",
+    "check:gpu": "node scripts/verify-gpu.mjs",
+    "build:pages": "node scripts/build.mjs && node scripts/pages.mjs"
+  },
+  "license": "MIT",
+  "homepage": "https://wieslawsoltes.github.io/PaintXP/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wieslawsoltes/PaintXP.git"
+  }
+}
