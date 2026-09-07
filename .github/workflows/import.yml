@@ -1,0 +1,91 @@
+name: Import verified PaintXP and publish
+
+on:
+  push:
+    branches: [main]
+    paths: ['.import/READY']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: paintxp-import
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Restore checksummed original source
+        shell: python
+        run: |
+          from pathlib import Path, PurePosixPath
+          import hashlib, json, lzma
+          parts = sorted(Path('.import').glob('part-*'))
+          assert len(parts) == 7, 'Incomplete source snapshot'
+          data = b''.join(p.read_bytes() for p in parts)
+          assert hashlib.sha256(data).hexdigest() == '93b1b3f26840cf925be7f614c313ef8efc76dbdc4a06c5c23897c6a51b70f4ee', 'Source checksum mismatch'
+          files = json.loads(lzma.decompress(data))
+          assert len(files) == 47, 'Unexpected source file count'
+          for name, text in files.items():
+              p = PurePosixPath(name)
+              assert not p.is_absolute() and '..' not in p.parts
+              assert p.parts[0] not in ('.git', '.github', '.import')
+              out = Path(name)
+              out.parent.mkdir(parents=True, exist_ok=True)
+              out.write_bytes(text.encode('utf-8'))
+          Path('start.sh').chmod(0o755)
+          print('Verified and restored', len(files), 'source files.')
+      - name: Build standalone HTML
+        run: npm run build
+      - name: Run Node tests
+        run: npm test
+      - name: Install browser test dependencies
+        run: |
+          python -m pip install playwright==1.55.0 Pillow==11.3.0
+          python -m playwright install --with-deps chromium
+          python -c "from playwright.sync_api import sync_playwright; p=sync_playwright().start(); print('CHROMIUM_PATH='+p.chromium.executable_path); p.stop()" >> "$GITHUB_ENV"
+      - name: Check desktop, touch, image codecs, and editing
+        run: npm run test:browser
+      - name: Commit complete source and generated distribution
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -r .import
+          git add .gitignore .nojekyll LICENSE README.md package.json index.html paint-xp.html start.sh start.bat assets src server scripts tests docs examples
+          git update-index --chmod=+x start.sh
+          git commit -m 'Import complete PaintXP application, MCP server, tests and documentation'
+          git push origin HEAD:main
+      - name: Stage public client only
+        run: GITHUB_SHA="$(git rev-parse HEAD)" node scripts/pages.mjs
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    needs: import
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
